@@ -15,3 +15,10 @@ argon2 = "0.5"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 futures-util = "0.3"
+# utoipa = { version = "4.2.3", features = ["actix_extras", "chrono", "uuid", "derive"] }
+# utoipa-swagger-ui = { version = "7", features = ["actix-web"] }
+#-- SwaggerUI
+# utoipa = { version = "3.5.0", features = ["actix_extras"] }
+# utoipa-swagger-ui = { version = "3.1.5", features = ["actix-web"] }
+utoipa = { version = "4.2.3", features = ["actix_extras"] }
+utoipa-swagger-ui = { version = "7", features = ["actix-web"] }

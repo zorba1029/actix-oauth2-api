@@ -7,9 +7,16 @@ use actix_web::Error;
 use serde::{Serialize, Deserialize};
 use chrono::{Utc, Duration};
 use std::env;
+use utoipa::ToSchema;
 
+// const SECRET: &[u8] = b"your-secret_key_change_me"; // 사용되지 않으므로 주석 처리 또는 삭제
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[schema(example = json!({
+    "sub": "user@example.com",
+    "exp": 1678886400,
+    "token_type": "access"
+}))]
 pub struct Claims {
     pub sub: String,
     pub exp: usize,

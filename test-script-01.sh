@@ -40,7 +40,7 @@ curl -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJh
 #-- return
 # {"email":"admin@djamware.com","message":"Your are authorized. This is a protected route"}% 
 
-curl -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBkamFtd2FyZS5jb20iLCJleHAiOjE3NDg2MTEyMTMsInRva2VuX3R5cGUiOiJhY2Nlc3MifQ.UTI1_X2ZoXqRTd8pHJhJ2YW9VI-avlGI64azR5JqAi0" \
+curl -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBkamFtd2FyZS5jb20iLCJleHAiOjE3NDg2MTM0NDQsInRva2VuX3R5cGUiOiJhY2Nlc3MifQ.WLPPgjrBia_5dtB1cou_i2FGJwC6UvP-oqXHVNtW5e8" \
    http://localhost:8080/api/profile | jq
 #-- return
 # {
@@ -50,7 +50,7 @@ curl -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJh
 
 curl -X POST http://localhost:8080/refresh \
   -H "Content-Type: application/json" \
-  -d '{ "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBkamFtd2FyZS5jb20iLCJleHAiOjE3NDkxNjkyODYsInRva2VuX3R5cGUiOiJyZWZyZXNoIn0.UvOgyOh93fAGStaMtvsBf67UBrno8XRC0rInOS8h42o" }'
+  -d '{ "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBkamFtd2FyZS5jb20iLCJleHAiOjE3NDkyMTczNDQsInRva2VuX3R5cGUiOiJyZWZyZXNoIn0.puwdTYAkPTC4IoTF3H3M10pZOLhez56SNtYgED-MCyg" }'
 #-- return
 # {
 #   "access_token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBkamFtd2FyZS5jb20iLCJleHAiOjE3NDg1NjU0MTAsInRva2VuX3R5cGUiOiJhY2Nlc3MifQ.eLj5kg2kGJINa1Ss2Lt4wqsyh6pBn9PYjHqOnft-sK4",

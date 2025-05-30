@@ -5,18 +5,36 @@ use jsonwebtoken::{ decode, Algorithm, DecodingKey, Validation, TokenData };
 use mongodb::Database;
 use mongodb::bson::doc;
 use serde::{Deserialize, Serialize};
+// use serde_json::json;
+use utoipa::{ToSchema};
 
 use crate::models::user::User;
 use crate::utils::hash::{hash_password, verify_password};
 use crate::utils::jwt::{create_jwt, Claims, extract_email_from_jwt};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
+#[schema(example = json!({
+    "username": "testuser",
+    "email": "user@example.com",
+    "password": "password123"
+}))]
 pub struct RegisterRequest {
     pub username: String,
     pub email: String,
     pub password: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/register",
+    security(),
+    request_body = RegisterRequest,
+    responses(
+        (status = 200, description = "User registered successfully", body = String, example = json!("User registered successfully")),
+        (status = 400, description = "Email already exists", body = String, example = json!("Email already exists")),
+        (status = 500, description = "Failed to hash password or register user", body = String, example = json!("Failed to hash password"))
+    )
+)]
 pub async fn register_user(
     db: web::Data<Database>, 
     form: web::Json<RegisterRequest>
@@ -100,12 +118,27 @@ pub async fn register_user(
 //     }
 // }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
+#[schema(example = json!({
+    "email": "admin@djamware.com",
+    "password": "mypassword"
+}))]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/login",
+    security(),
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful, returns access and refresh tokens", body = TokenResponse),
+        (status = 401, description = "Invalid credentials"),
+        (status = 500, description = "Database or token generation error")
+    )
+)]
 #[post("/login")]
 pub async fn login(
     db: web::Data<Database>, 
@@ -148,31 +181,33 @@ pub async fn login(
 }
 
 
-// Protected route
-pub async fn get_profile(req: HttpRequest) -> HttpResponse {
-    if let Some(claims) = req.extensions().get::<Claims>() {
-        HttpResponse::Ok().json(serde_json::json!({ 
-            "email": claims.sub,
-            "message": "Your are authorized. This is a protected route"
-         }))
-    } else {
-        HttpResponse::Unauthorized().body("Unauthorized")
-    }
-}
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct RefreshRequest {
     pub refresh_token: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
+#[schema(example = json!({
+    "access_token": "your_access_token_here",
+    "refresh_token": "your_refresh_token_here"
+}))]
 pub struct TokenResponse {
     access_token: String,
     refresh_token: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/refresh",
+    security(),
+    request_body = RefreshRequest,
+    responses(
+        (status = 200, description = "Token refresh successful", body = TokenResponse),
+        (status = 401, description = "Invalid refresh token or refresh token mismatch")
+    )
+)]
 #[post("/refresh")]
-async fn refresh_token(
+pub async fn refresh_token(
     db: web::Data<Database>,
     payload: web::Json<RefreshRequest>
 ) -> Result<HttpResponse, Error> {
@@ -221,8 +256,64 @@ async fn refresh_token(
     )
 }
 
+#[derive(Serialize, ToSchema)]
+#[schema(example = json!({"email": "user@example.com", "message": "Your are authorized. This is a protected route"}))]
+pub struct ProfileResponse {
+    email: String,
+    message: String,
+}
+
+/// Get user profile information
+/// 
+/// **Authentication Required:** This endpoint requires a valid JWT token.
+/// 
+/// **Usage:**
+/// 1. First login via `/login` endpoint to get an access_token
+/// 2. Click the "Authorize" button at the top of this page
+/// 3. Enter your access_token (without 'Bearer ' prefix)
+/// 4. Now you can test this endpoint with automatic authorization
+/// 
+/// **Manual curl example:**
+/// ```
+/// curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" http://localhost:8080/api/profile
+/// ```
+#[utoipa::path(
+    get,
+    path = "/api/profile",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Profile data", body = ProfileResponse),
+        (status = 401, description = "Unauthorized - Missing or invalid token")
+    )
+)]
+// Protected route
+pub async fn get_profile(req: HttpRequest) -> HttpResponse {
+    if let Some(claims) = req.extensions().get::<Claims>() {
+        HttpResponse::Ok().json(ProfileResponse {
+            email: claims.sub.clone(),
+            message: "Your are authorized. This is a protected route".to_string()
+         })
+    } else {
+        HttpResponse::Unauthorized().body("Unauthorized")
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/logout",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Logged out successfully", body = String, example = json!("Logged out successfully")),
+        (status = 401, description = "Unauthorized - Missing or invalid token"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 #[post("/logout")]
-async fn logout(
+pub async fn logout(
     db: web::Data<Database>,
     req: HttpRequest
 ) -> Result<HttpResponse, Error> {
