@@ -9,4 +9,3 @@ pub async fn connect_db() -> Database {
 
     client.database("rust_oauth2")
 }
-

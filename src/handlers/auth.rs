@@ -1,22 +1,21 @@
-use actix_web::{post,web, Error, HttpResponse, HttpRequest, HttpMessage};
-use actix_web::error::{ErrorUnauthorized, ErrorInternalServerError};
+use actix_web::error::{ErrorInternalServerError, ErrorUnauthorized};
 use actix_web::http::header::AUTHORIZATION;
-use jsonwebtoken::{ decode, Algorithm, DecodingKey, Validation, TokenData };
+use actix_web::{Error, HttpMessage, HttpRequest, HttpResponse, post, web};
+use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation, decode};
 use mongodb::Database;
 use mongodb::bson::doc;
 use serde::{Deserialize, Serialize};
-// use serde_json::json;
-use utoipa::{ToSchema};
+use utoipa::ToSchema;
 
 use crate::models::user::User;
 use crate::utils::hash::{hash_password, verify_password};
-use crate::utils::jwt::{create_jwt, Claims, extract_email_from_jwt};
+use crate::utils::jwt::{Claims, create_jwt, extract_email_from_jwt};
 
 #[derive(Debug, Deserialize, ToSchema)]
 #[schema(example = json!({
-    "username": "testuser",
-    "email": "user@example.com",
-    "password": "password123"
+    "username": "djamware",
+    "email": "admin@djamware.com",
+    "password": "mypassword"
 }))]
 pub struct RegisterRequest {
     pub username: String,
@@ -24,10 +23,12 @@ pub struct RegisterRequest {
     pub password: String,
 }
 
+/// Register new user
 #[utoipa::path(
     post,
     path = "/register",
-    security(),
+    operation_id = "register",
+    security(), // 빈 security - 인증 불필요
     request_body = RegisterRequest,
     responses(
         (status = 200, description = "User registered successfully", body = String, example = json!("User registered successfully")),
@@ -36,8 +37,8 @@ pub struct RegisterRequest {
     )
 )]
 pub async fn register_user(
-    db: web::Data<Database>, 
-    form: web::Json<RegisterRequest>
+    db: web::Data<Database>,
+    form: web::Json<RegisterRequest>,
 ) -> HttpResponse {
     let collection = db.collection::<User>("users");
 
@@ -68,56 +69,6 @@ pub async fn register_user(
     }
 }
 
-// pub async fn login_user(
-//     db: web::Data<Database>,
-//     form: web::Json<LoginRequest>,
-// ) -> HttpResponse {
-//     let collection = db.collection::<User>("users");
-
-//     let user = match collection.find_one(doc! { "email": &form.email }).await {
-//         Ok(Some(user)) => user,
-//         _ => {
-//             return HttpResponse::Unauthorized().body("Invalid email or password");
-//         }
-//     };
-
-//     // verify password
-//     match verify_password(&user.password_hash, &form.password) {
-//         Ok(true) => {
-//             match create_jwt(&user.email) {
-//                 Ok(token) => HttpResponse::Ok().json(serde_json::json!({ "token": token })),
-//                 Err(_) => HttpResponse::InternalServerError().body("JWT generation failed"),
-//             }
-//         }
-//         _ => HttpResponse::Unauthorized().body("Invalid email or password"),
-//     }
-// }
-
-//-- added Token Refrech Login
-//   + On login: receive both access and refresh tokens
-//   + When the access token expires, send the refresh token to get a new access token
-// pub async fn login_user(db: web::Data<Database>, form: web::Json<LoginRequest>) -> HttpResponse {
-//     let collection = db.collection::<User>("users");
-
-//     let user = match collection.find_one(doc! { "email": &form.email }).await {
-//         Ok(Some(user)) => user,
-//         _ => {
-//             return HttpResponse::Unauthorized().body("Invalid email or password");
-//         }
-//     };
-
-//     // verify password
-//     match verify_password(&user.password_hash, &form.password) {
-//         Ok(true) => {
-//             match create_jwt(&user.email, 5, "access") {
-//                 Ok(token) => HttpResponse::Ok().json(serde_json::json!({ "token": token })),
-//                 Err(_) => HttpResponse::InternalServerError().body("JWT generation failed"),
-//             }
-//         }
-//         _ => HttpResponse::Unauthorized().body("Invalid email or password"),
-//     }
-// }
-
 #[derive(Debug, Deserialize, ToSchema)]
 #[schema(example = json!({
     "email": "admin@djamware.com",
@@ -128,10 +79,12 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+/// User login
 #[utoipa::path(
     post,
     path = "/login",
-    security(),
+    operation_id = "login",
+    security(), // 빈 security - 인증 불필요
     request_body = LoginRequest,
     responses(
         (status = 200, description = "Login successful, returns access and refresh tokens", body = TokenResponse),
@@ -141,19 +94,20 @@ pub struct LoginRequest {
 )]
 #[post("/login")]
 pub async fn login(
-    db: web::Data<Database>, 
-    credentials: web::Json<LoginRequest>
+    db: web::Data<Database>,
+    credentials: web::Json<LoginRequest>,
 ) -> Result<HttpResponse, Error> {
     let collection = db.collection::<User>("users");
 
     let user = collection
-        .find_one(doc! { "email": &credentials.email }).await
-        .map_err(|e| ErrorInternalServerError(format!("Database error: {}", e)))? 
+        .find_one(doc! { "email": &credentials.email })
+        .await
+        .map_err(|e| ErrorInternalServerError(format!("Database error: {}", e)))?
         .ok_or_else(|| ErrorUnauthorized("Invalide credentials in database"))?;
 
     // validate passsword (user argon2 vefificatiaon)
     if !verify_password(&user.password, &credentials.password)
-        .map_err(|_| ErrorUnauthorized("Invalid credentials in verify_password"))? 
+        .map_err(|_| ErrorUnauthorized("Invalid credentials in verify_password"))?
     {
         return Err(ErrorUnauthorized("Invalid credentials in verify_password"));
     }
@@ -165,21 +119,19 @@ pub async fn login(
         .map_err(|e| ErrorInternalServerError(format!("Token generation error: {}", e)))?;
 
     // Save refresh token
-    collection.update_one(
+    collection
+        .update_one(
             doc! { "email": &user.email },
-            doc! { "$set": { "refresh_token": &new_refresh_token }}
+            doc! { "$set": { "refresh_token": &new_refresh_token }},
         )
         .await
         .map_err(|e| ErrorInternalServerError(format!("Failed to save refresh token: {}", e)))?;
 
-    Ok(
-        HttpResponse::Ok().json(TokenResponse { 
-            access_token,
-            refresh_token: new_refresh_token,
-        })
-    )
+    Ok(HttpResponse::Ok().json(TokenResponse {
+        access_token,
+        refresh_token: new_refresh_token,
+    }))
 }
-
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct RefreshRequest {
@@ -196,10 +148,12 @@ pub struct TokenResponse {
     refresh_token: String,
 }
 
+/// Refresh access token
 #[utoipa::path(
     post,
     path = "/refresh",
-    security(),
+    operation_id = "refresh",
+    security(), // 빈 security - 인증 불필요  
     request_body = RefreshRequest,
     responses(
         (status = 200, description = "Token refresh successful", body = TokenResponse),
@@ -209,16 +163,16 @@ pub struct TokenResponse {
 #[post("/refresh")]
 pub async fn refresh_token(
     db: web::Data<Database>,
-    payload: web::Json<RefreshRequest>
+    payload: web::Json<RefreshRequest>,
 ) -> Result<HttpResponse, Error> {
     let secret = std::env::var("JWT_SECRET").unwrap();
 
     let decoded_data: TokenData<Claims> = decode::<Claims>(
-            &payload.refresh_token,
-            &DecodingKey::from_secret(secret.as_bytes()),
-            &Validation::new(Algorithm::HS256)
-        )
-        .map_err(|_| ErrorUnauthorized("Invalid refresh token"))?;
+        &payload.refresh_token,
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &Validation::new(Algorithm::HS256),
+    )
+    .map_err(|_| ErrorUnauthorized("Invalid refresh token"))?;
 
     if decoded_data.claims.token_type != "refresh" {
         return Err(ErrorUnauthorized("Not a refresh token"));
@@ -226,7 +180,8 @@ pub async fn refresh_token(
 
     let collection = db.collection::<User>("users");
     let user = collection
-        .find_one(doc! { "email": &decoded_data.claims.sub }).await
+        .find_one(doc! { "email": &decoded_data.claims.sub })
+        .await
         .map_err(|e| ErrorInternalServerError(format!("Database error: {}", e)))?
         .ok_or_else(|| ErrorUnauthorized("Invalid credentials"))?;
 
@@ -241,19 +196,18 @@ pub async fn refresh_token(
         .map_err(|e| ErrorInternalServerError(format!("Token generation error: {}", e)))?;
 
     // update stored refresh token
-    collection.update_one(
+    collection
+        .update_one(
             doc! { "email": &user.email },
-            doc! { "$set": { "refresh_token": &new_refresh_token }}
+            doc! { "$set": { "refresh_token": &new_refresh_token }},
         )
         .await
         .map_err(|e| ErrorInternalServerError(format!("Failed to save refresh token: {}", e)))?;
 
-    Ok(
-        HttpResponse::Ok().json(TokenResponse { 
-            access_token: new_access_token,
-            refresh_token: new_refresh_token,
-        })
-    )
+    Ok(HttpResponse::Ok().json(TokenResponse {
+        access_token: new_access_token,
+        refresh_token: new_refresh_token,
+    }))
 }
 
 #[derive(Serialize, ToSchema)]
@@ -263,23 +217,11 @@ pub struct ProfileResponse {
     message: String,
 }
 
-/// Get user profile information
-/// 
-/// **Authentication Required:** This endpoint requires a valid JWT token.
-/// 
-/// **Usage:**
-/// 1. First login via `/login` endpoint to get an access_token
-/// 2. Click the "Authorize" button at the top of this page
-/// 3. Enter your access_token (without 'Bearer ' prefix)
-/// 4. Now you can test this endpoint with automatic authorization
-/// 
-/// **Manual curl example:**
-/// ```
-/// curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" http://localhost:8080/api/profile
-/// ```
+/// Get user profile
 #[utoipa::path(
     get,
     path = "/api/profile",
+    operation_id = "profile",
     security(
         ("bearer_auth" = [])
     ),
@@ -293,16 +235,18 @@ pub async fn get_profile(req: HttpRequest) -> HttpResponse {
     if let Some(claims) = req.extensions().get::<Claims>() {
         HttpResponse::Ok().json(ProfileResponse {
             email: claims.sub.clone(),
-            message: "Your are authorized. This is a protected route".to_string()
-         })
+            message: "Your are authorized. This is a protected route".to_string(),
+        })
     } else {
         HttpResponse::Unauthorized().body("Unauthorized")
     }
 }
 
+/// User logout  
 #[utoipa::path(
     post,
     path = "/logout",
+    operation_id = "logout",
     security(
         ("bearer_auth" = [])
     ),
@@ -313,21 +257,22 @@ pub async fn get_profile(req: HttpRequest) -> HttpResponse {
     )
 )]
 #[post("/logout")]
-pub async fn logout(
-    db: web::Data<Database>,
-    req: HttpRequest
-) -> Result<HttpResponse, Error> {
+pub async fn logout(db: web::Data<Database>, req: HttpRequest) -> Result<HttpResponse, Error> {
     let user_email = get_email_from_request(&req)?;
-    println!("-> handlers/auth.rs - logout - user_email: {:?}", user_email);
+    println!(
+        "-> handlers/auth.rs - logout - user_email: {:?}",
+        user_email
+    );
 
     let collection = db.collection::<User>("users");
-    collection.update_one(
-        doc! { "email": &user_email },
-        doc! { "$unset": { "refresh_token": "" }}
-    )
-    .await
-    .map_err(|e| ErrorInternalServerError(format!("Database update failed: {}", e)))?;
-    
+    collection
+        .update_one(
+            doc! { "email": &user_email },
+            doc! { "$unset": { "refresh_token": "" }},
+        )
+        .await
+        .map_err(|e| ErrorInternalServerError(format!("Database update failed: {}", e)))?;
+
     Ok(HttpResponse::Ok().body("Logged out successfully"))
 }
 
@@ -337,9 +282,9 @@ fn get_email_from_request(req: &HttpRequest) -> Result<String, Error> {
         .get(AUTHORIZATION)
         .and_then(|h| h.to_str().ok())
         .and_then(|auth_header| auth_header.strip_prefix("Bearer "))
-        .ok_or_else(||
+        .ok_or_else(|| {
             actix_web::error::ErrorUnauthorized("Missingor invalid authorization header")
-        )?;
+        })?;
 
     extract_email_from_jwt(token)
 }

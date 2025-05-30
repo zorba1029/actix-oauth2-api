@@ -1,20 +1,19 @@
-use actix_web::{middleware::Logger, web, App, HttpServer, Responder};
+use actix_web::{App, HttpServer, Responder, middleware::Logger, web};
 use dotenv::dotenv;
 use std::env;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
-use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::Modify;
-use serde_json::json;
+use utoipa::OpenApi;
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+use utoipa_swagger_ui::SwaggerUi;
 
 mod config;
 mod handlers;
-mod utils;
-mod models;
 mod middleware;
+mod models;
+mod utils;
 
 use config::connect_db;
-use handlers::auth::{login, register_user, get_profile, refresh_token, logout};
+use handlers::auth::{get_profile, login, logout, refresh_token, register_user};
 use middleware::jwt_auth::AuthMiddleware;
 
 struct SecurityAddon;
@@ -29,8 +28,8 @@ impl Modify for SecurityAddon {
                     .scheme(HttpAuthScheme::Bearer)
                     .bearer_format("JWT")
                     .description(Some("Enter JWT token."))
-                    .build()
-            )
+                    .build(),
+            ),
         )
     }
 }
@@ -102,9 +101,10 @@ async fn main() -> std::io::Result<()> {
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}")
                     .url("/api-docs/openapi.json", ApiDoc::openapi())
-                    .config(utoipa_swagger_ui::Config::default()
-                        .persist_authorization(true)
-                        .display_operation_id(true)
+                    .config(
+                        utoipa_swagger_ui::Config::default()
+                            .persist_authorization(true)
+                            .display_operation_id(false),
                     ),
             )
             .route("/", web::get().to(index))
@@ -114,7 +114,7 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api")
                     .wrap(AuthMiddleware)
-                    .route("/profile", web::get().to(get_profile))
+                    .route("/profile", web::get().to(get_profile)),
             )
             .service(logout)
     })
@@ -122,4 +122,3 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await
 }
-

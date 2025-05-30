@@ -1,17 +1,14 @@
 use actix_web::{
-    dev::{ Service, ServiceRequest, ServiceResponse, Transform},
-    Error,
-    HttpMessage,
-    HttpResponse,
+    Error, HttpMessage, HttpResponse,
     body::EitherBody,
+    dev::{Service, ServiceRequest, ServiceResponse, Transform},
 };
-use futures_util::future::{ ok, Ready, LocalBoxFuture };
+use futures_util::future::{LocalBoxFuture, Ready, ok};
 use std::rc::Rc;
-
 
 pub struct AuthMiddleware;
 
-impl<S, B> Transform<S, ServiceRequest> for  AuthMiddleware 
+impl<S, B> Transform<S, ServiceRequest> for AuthMiddleware
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     B: 'static,
@@ -42,7 +39,10 @@ where
     type Error = Error;
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
-    fn poll_ready(&self, ctx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        &self,
+        ctx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
         self.service.poll_ready(ctx)
     }
 
@@ -50,7 +50,8 @@ where
         let service = Rc::clone(&self.service);
 
         Box::pin(async move {
-            let token = req.headers()
+            let token = req
+                .headers()
                 .get("Authorization")
                 .and_then(|h| h.to_str().ok())
                 .and_then(|h| h.strip_prefix("Bearer "))
@@ -69,7 +70,7 @@ where
                         let response = req.into_response(
                             HttpResponse::Unauthorized()
                                 .body("Invalid token")
-                                .map_into_right_body()
+                                .map_into_right_body(),
                         );
                         Ok(response)
                     }
@@ -78,11 +79,10 @@ where
                 let response = req.into_response(
                     HttpResponse::Unauthorized()
                         .body("Missing token")
-                        .map_into_right_body()
+                        .map_into_right_body(),
                 );
                 Ok(response)
             }
         })
     }
 }
-

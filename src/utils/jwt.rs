@@ -1,11 +1,11 @@
-use jsonwebtoken::{
-    encode, decode, DecodingKey, EncodingKey, Header, Validation, Algorithm, TokenData
-};
-use jsonwebtoken::errors::Error as JwtError;
-use actix_web::error::ErrorUnauthorized;
 use actix_web::Error;
-use serde::{Serialize, Deserialize};
-use chrono::{Utc, Duration};
+use actix_web::error::ErrorUnauthorized;
+use chrono::{Duration, Utc};
+use jsonwebtoken::errors::Error as JwtError;
+use jsonwebtoken::{
+    Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode,
+};
+use serde::{Deserialize, Serialize};
 use std::env;
 use utoipa::ToSchema;
 
@@ -20,7 +20,7 @@ use utoipa::ToSchema;
 pub struct Claims {
     pub sub: String,
     pub exp: usize,
-    pub token_type: String,  // "access" or "refresh"
+    pub token_type: String, // "access" or "refresh"
 }
 
 //-- added Token Refrech Login
@@ -40,7 +40,11 @@ pub fn create_jwt(user_id: &str, minutes: i64, token_type: &str) -> Result<Strin
 
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
-    encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes()))
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
 }
 
 pub fn verify_jwt(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
@@ -54,7 +58,10 @@ pub fn verify_jwt(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
     ) {
         Ok(token_data) => {
             // println!("utils/jwt.rs - verify_jwt - token_data: {:?}", token_data);
-            println!("-> utils/jwt.rs - verify_jwt - token_data.claims: {:?}", token_data.claims);
+            println!(
+                "-> utils/jwt.rs - verify_jwt - token_data.claims: {:?}",
+                token_data.claims
+            );
             Ok(token_data.claims)
         }
         Err(e) => {
@@ -66,8 +73,7 @@ pub fn verify_jwt(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
 }
 
 pub fn extract_email_from_jwt(token: &str) -> Result<String, Error> {
-    let secret = env::var("JWT_SECRET")
-        .map_err(|_| ErrorUnauthorized("Missing JWT_SECRET"))?;
+    let secret = env::var("JWT_SECRET").map_err(|_| ErrorUnauthorized("Missing JWT_SECRET"))?;
 
     let token_data: TokenData<Claims> = decode::<Claims>(
         token,
