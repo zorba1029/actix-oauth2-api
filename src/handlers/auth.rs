@@ -23,6 +23,7 @@ pub struct RegisterRequest {
     pub password: String,
 }
 
+//-----------------------------------------
 /// Register new user
 #[utoipa::path(
     post,
@@ -79,6 +80,7 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+//-----------------------------------------
 /// User login
 #[utoipa::path(
     post,
@@ -148,6 +150,7 @@ pub struct TokenResponse {
     refresh_token: String,
 }
 
+//-----------------------------------------
 /// Refresh access token
 #[utoipa::path(
     post,
@@ -217,6 +220,7 @@ pub struct ProfileResponse {
     message: String,
 }
 
+//-----------------------------------------
 /// Get user profile
 #[utoipa::path(
     get,
@@ -242,6 +246,7 @@ pub async fn get_profile(req: HttpRequest) -> HttpResponse {
     }
 }
 
+//-----------------------------------------
 /// User logout  
 #[utoipa::path(
     post,

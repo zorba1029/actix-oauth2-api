@@ -81,7 +81,7 @@ impl Modify for SecurityAddon {
 struct ApiDoc;
 
 async fn index() -> impl Responder {
-    "Rust OAuth2 API is running..."
+    "Rust/Actix OAuth2 API is running..."
 }
 
 //-----------------------------
