@@ -3,18 +3,16 @@
 [Read more article](https://www.djamware.com/post/6836f7bc3069a919de614b05/rest-api-security-with-rust-mongodb-and-oauth2)
 
 ## Features
-
-- ✅ User registration with password hashing (Argon2)
-- ✅ Login that creates JWT access and refresh tokens
-- ✅ JWT verification and route protection middleware
-- ✅ Refresh token re-generation and persistence
+- User registration with password hashing (Argon2)
+- Login that creates JWT access and refresh tokens
+- JWT verification and route protection middleware
+- Refresh token re-generation and persistence
 - Swagger-UI 기능 추가
 
 ## Testing
 Server will run on http://localhost:8080.
 
 ## API Endpoints
-
 | Method | Endpoint           | Description          |
 | ------ | ------------------ | -------------------- |
 | POST   | `/register`        | Register a new user  |
@@ -24,7 +22,6 @@ Server will run on http://localhost:8080.
 | POST   | `/logout`          | reset refresh token  |
 
 ## Project Structure
-
 ```graphql
 src/
 │
